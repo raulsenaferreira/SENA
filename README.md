@@ -1,7 +1,7 @@
 # SHUM
 Repository of the paper "All that glitters is not gold: a pragmatic metric to avoid spurious detections of out-of-distribution data"
 
-SHUM It is a metric generated from four other metrics: "Similarity, hardness, uniqueness, and mistakennes".
+SHUM is a metric generated from four other metrics: "Similarity, hardness, uniqueness, and mistakennes".
 
 The four metrics above are provided by the open source tool Fiftyone Brain (https://voxel51.com/docs/fiftyone/api/fiftyone.brain.html#) 
 
