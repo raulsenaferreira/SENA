@@ -3,8 +3,6 @@ Repository of the paper "All that glitters is not gold: a pragmatic metric to av
 
 SHUM is a metric generated from four other metrics: "Similarity, hardness, uniqueness, and mistakennes".
 
-The four metrics above are provided by the open source tool Fiftyone Brain (https://voxel51.com/docs/fiftyone/api/fiftyone.brain.html#) 
-
 We adapted all 4 metrics in one single metric and we also adapted it to be applied during operation in safe-critical systems.
 
 OOD data is usually source of errors in classifiers and object detectors built with deep learning.
