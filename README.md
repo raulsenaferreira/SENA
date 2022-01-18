@@ -1,9 +1,7 @@
-# SHUM
-Repository of the paper "All that glitters is not gold: a pragmatic metric to avoid spurious detections of out-of-distribution data"
+# SHINE
+Repository of the paper "All that glitters is not gold: avoiding spurious OOD detections by real-time monitoring potential model misclassifications"
 
-SHUM is a metric generated from four other metrics: "Similarity, hardness, uniqueness, and mistakennes".
-
-We adapted all 4 metrics in one single metric and we also adapted it to be applied during operation in safe-critical systems.
+SHINE is a metric generated from five other metrics: "Similarity, hardness, i, noise, and entropy"; adapted to be applied during operation in safe-critical systems.
 
 OOD data is usually source of errors in classifiers and object detectors built with deep learning.
 Literature usually apply detectors at real-time aiming at detect and avoid such data.
