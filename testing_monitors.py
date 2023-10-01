@@ -30,8 +30,7 @@ def run(arr_monitors, x_test, pred_test, features_test, softmax_test, logits_tes
             zip(x_test, pred_test, features_test, softmax_test, logits_test, lab_test)):
 
         if monitor_shine is not None:
-            res = monitor_shine.predict(np.array([x]), feature, pred, monitor_shine.threshold_S,
-                                        monitor_shine.threshold_HINE)
+            res = monitor_shine.predict(np.array([x]), np.array([feature]), pred,  monitor_shine.threshold)
             monitor_shine.results.append(res)
 
         elif monitor_oob is not None:

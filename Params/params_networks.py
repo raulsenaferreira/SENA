@@ -1,7 +1,9 @@
 n_classes_dataset = {
     "cifar10": 10,
     "svhn": 10,
-    "cifar100": 100
+    "cifar100": 100,
+    "mnist": 10,
+    "fashion_mnist": 10
 }
 
 models_path = "./weights/"
@@ -139,5 +141,11 @@ layers = {
                  'block3.layer.14.relu_1': 'layer96',
                  'block3.layer.15.relu': 'layer97',
                  'block3.layer.15.relu_1': 'layer98',
-                 'relu': 'layer99'}
+                 'relu': 'layer99'},
+    "cnn": {"conv1": "layer1",
+            "conv2": "layer2",
+            "dropout1": "layer3",
+            "dropout2": "layer4",
+            "fc1": "layer5",
+            "fc2": "layer6"}
 }

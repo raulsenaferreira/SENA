@@ -95,15 +95,15 @@ def create_vector_energy(X):
     return np.array(vector_energy)
 
 
-def calculate_density(X, use_grid_search=True, bandwidth=1.0):
+def calculate_density(X, use_grid_search=True, CV_num=10, bandwidth=1.0):
     if use_grid_search:
-        CV_num = 10
+
         if len(X) <= CV_num:
             CV_num = len(X)
 
-        # searching the best bandwidth
+        print("searching the best bandwidth")
         grid = GridSearchCV(KernelDensity(),
-                            {'bandwidth': np.linspace(0.1, 1.0, 30)}, cv=CV_num)
+                            {'bandwidth': np.linspace(0.1, 1.0, 30)}, cv=CV_num, n_jobs=-1)
         grid.fit(X)
 
         return grid.best_estimator_  # kde estimator

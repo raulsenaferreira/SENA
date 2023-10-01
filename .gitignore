@@ -8,6 +8,11 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+Data/
+shine_env/
+Features/
+Monitors/
+weights/
 build/
 develop-eggs/
 dist/

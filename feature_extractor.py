@@ -93,6 +93,7 @@ class FeatureExtractor:
                     if save:
                         self._save_features(images, features[i], logits, softmax_values,
                                             predictions, labels, file_names_to_extract[0])
+                    features_extracted = list(features_extracted)  # ensuring that pop works by forcing it to be a list
                     features_extracted.pop(0)
                     file_names_to_extract.pop(0)
 
@@ -115,10 +116,16 @@ class FeatureExtractor:
         with torch.no_grad():
             for data in tqdm(dataset.dataloader):
                 images, labels = data[0].to(self.device), data[1].to(self.device)
-                outputs = feature_extractor(images)
 
-                for i, l in enumerate(layers_refs):
-                    features[i].append(torch.mean(outputs[l], (2, 3)))
+                outputs = feature_extractor(images)
+                try:
+                    for i, l in enumerate(layers_refs):
+                        # print("outputs from try", np.shape(outputs[l]), outputs[l])
+                        features[i].append(torch.mean(outputs[l], (2, 3)))
+                except:
+                    for i, l in enumerate(layers_refs):
+                        # print("outputs from except", np.shape(outputs[l]), outputs[l])
+                        features[i].append(outputs[l])
 
                 outputs = self.model(images)
                 _, predicted = torch.max(outputs.data, 1)
@@ -128,9 +135,15 @@ class FeatureExtractor:
                 all_logits.append(outputs.data)
                 all_softmax.append(softmax(outputs.data.cpu().detach().numpy(), axis=1))
 
-        for i in range(len(features)):
-            features[i] = torch.cat(features[i], dim=0)
-            features[i] = features[i].cpu().detach().numpy()
+        try:
+            for i in range(len(features)):
+                features[i] = torch.cat(features[i], dim=0)
+                features[i] = features[i].cpu().detach().numpy()
+        except:
+            # print(np.shape(features))
+            features = torch.tensor(features)
+            features = features.cpu().detach().numpy()
+
 
         predicted_classes = torch.cat(predicted_classes)
         predicted_classes = predicted_classes.cpu().detach().numpy()
@@ -166,8 +179,14 @@ class FeatureExtractor:
             images = attacker.run(images, labels).to(self.device)
             outputs = feature_extractor(images)
 
-            for i, l in enumerate(layers_refs):
-                features[i].append(torch.mean(outputs[l], (2, 3)).cpu().detach().numpy())
+            try:
+                for i, l in enumerate(layers_refs):
+                    # print("outputs from try", np.shape(outputs[l]), outputs[l])
+                    features[i].append(torch.mean(outputs[l], (2, 3)))
+            except:
+                for i, l in enumerate(layers_refs):
+                    # print("outputs from except", np.shape(outputs[l]), outputs[l])
+                    features[i].append(outputs[l])
 
             outputs = self.model(images)
             _, predicted = torch.max(outputs.data, 1)
@@ -177,8 +196,14 @@ class FeatureExtractor:
             all_logits.append(outputs.data)
             all_softmax.append(softmax(outputs.data.cpu().detach().numpy(), axis=1))
 
-        for i in range(len(features)):
-            features[i] = np.concatenate(features[i], axis=0)
+        # for i in range(len(features)):
+        #    features[i] = np.concatenate(features[i], axis=0)
+        try:
+            for i in range(len(features)):
+                features[i] = np.concatenate(features[i], axis=0)
+        except:
+            with torch.no_grad():
+                features = np.array([t.numpy() for t in features[0]]) #torch.tensor(features[0])
 
         predicted_classes = torch.cat(predicted_classes)
         predicted_classes = predicted_classes.cpu().detach().numpy()
@@ -238,8 +263,17 @@ class FeatureExtractor:
             self._load_resnet()
         elif self.network == "densenet":
             self._load_densenet()
+        elif self.network == "cnn":
+            self._load_cnn()
         else:
             pass
+
+    def _load_cnn(self):
+        self.model = models.CNN()
+        self.model.load_state_dict(torch.load(models_path + self.model_dataset_name,
+                                              map_location=self.device_name))
+        self.linear_weights = self.model.fc2.weight.cpu().detach().numpy()
+        self.linear_bias = self.model.fc2.bias.cpu().detach().numpy()
 
     def _load_resnet(self):
         self.model = models.ResNet34(num_c=self.n_classes_id)
@@ -249,6 +283,8 @@ class FeatureExtractor:
         self.linear_bias = self.model.linear.bias.cpu().detach().numpy()
 
     def _load_densenet(self):
+        from torchvision import models as torch_model
+        '''
         # if self.id_dataset == "svhn":
         self.model = models.DenseNet3(100, self.n_classes_id)
         self.model.load_state_dict(torch.load(models_path + self.model_dataset_name,
@@ -259,6 +295,10 @@ class FeatureExtractor:
 
         self.linear_weights = self.model.fc.weight.cpu().detach().numpy()
         self.linear_bias = self.model.fc.bias.cpu().detach().numpy()
+        '''
+        self.model = torch_model.densenet121(pretrained=True)
+        self.linear_weights = self.model.classifier.weight.cpu().detach().numpy()
+        self.linear_bias = self.model.classifier.bias.cpu().detach().numpy()
 
 
 class AdversarialAttack:

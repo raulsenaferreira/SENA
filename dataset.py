@@ -1,10 +1,14 @@
 import os
+
+import numpy as np
 import requests
 import tarfile
 
 import torch
 import torchvision
 import torchvision.transforms as transforms
+from PIL import Image
+from torch.utils.data import TensorDataset
 
 from Params.params_dataset import *
 
@@ -109,8 +113,66 @@ class Dataset:
             self._load_tinyimagenet()
         elif self.name == "lsun":
             self._load_lsun()
+        elif self.name == "mnist":
+            self._load_mnist()
+        elif self.name == "fashion_mnist":
+            self._load_fashion_mnist()
+        elif self.name == "emnist":
+            self._load_emnist()
+        elif self.name == "asl_mnist":
+            self._load_asl_mnist()
+        elif self.name == "simpsons_mnist":
+            self._load_simpsons_mnist()
+        elif self.name == "gtsrb":
+            self._load_gtsrb()
+        elif self.name == "fractal":
+            self._load_fractal()
         else:
             pass
+
+    def _load_mnist(self):
+        """Load MNIST."""
+        is_train = self.split == "train"
+        mnist_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
+        self.dataset = torchvision.datasets.MNIST(root=datasets_path, train=is_train,
+                                                  download=True, transform=mnist_transform)
+
+    def _load_fashion_mnist(self):
+        """Load Fashion MNIST."""
+        is_train = self.split == "train"
+        mnist_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
+        self.dataset = torchvision.datasets.FashionMNIST(root=datasets_path, train=is_train,
+                                                         download=True, transform=mnist_transform)
+
+    def _load_emnist(self):
+        """Load E-MNIST."""
+        is_train = self.split == "train"
+        mnist_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
+        self.dataset = torchvision.datasets.EMNIST(root=datasets_path, train=is_train, split="letters",
+                                                   download=True, transform=mnist_transform)
+
+    def _load_asl_mnist(self):
+        mnist_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,)),
+                                              transforms.Grayscale(num_output_channels=1)
+                                              ])
+        '''
+        # execute this just once to convert the csv data to png
+        import pandas as pd
+        train_data = pd.read_csv(path_asl_mnist + 'sign_mnist_test.csv')
+        images_csv = train_data.iloc[:, 1:].to_numpy()
+        targets_csv = train_data['label'].to_numpy()
+        channels, batch, size = 1, np.shape(images_csv)[0], np.shape(images_csv)[1]
+        images_csv = np.reshape(images_csv, (batch, 28, 28))
+        print(np.shape(images_csv), np.shape(targets_csv))
+        i = 0
+
+        for img in images_csv:
+            PIL_image = Image.fromarray(np.uint8(img * 255), 'L')
+            PIL_image.save(path_asl_mnist + 'sign_mnist_test/{}.jpg'.format(i))
+            i += 1
+        '''
+
+        self.dataset = torchvision.datasets.ImageFolder(path_asl_mnist, transform=mnist_transform)
 
     def _load_cifar10(self):
         """Load CIFAR10."""
@@ -138,28 +200,47 @@ class Dataset:
 
     def _load_tinyimagenet(self):
         """Load Tiny ImageNet."""
+        '''
         if not os.path.exists(path_tinyImagenet):
             r = requests.get(downloadUrl_tinyImagenet, allow_redirects=True)
             open(path_tinyImagenet[:-1] + ".tar.gz", 'wb').write(r.content)
             tar = tarfile.open(path_tinyImagenet[:-1] + ".tar.gz")
             tar.extractall(path=datasets_path)
             tar.close()
-
+        '''
         self.dataset = torchvision.datasets.ImageFolder(path_tinyImagenet,
                                                         transform=self._transform)
 
     def _load_lsun(self):
         """Load LSUN."""
-
+        '''
         if not os.path.exists(path_lsun):
             r = requests.get(downloadUrl_lsun, allow_redirects=True)
             open(path_lsun[:-1] + ".tar.gz", 'wb').write(r.content)
             tar = tarfile.open(path_lsun[:-1] + ".tar.gz", 'r:')
             tar.extractall(path=datasets_path)
             tar.close()
-
-        self.dataset = torchvision.datasets.ImageFolder(path_lsun,
+        '''
+        path_lsun_folder = "Data/LSUN_resize2/"
+        self.dataset = torchvision.datasets.ImageFolder(path_lsun_folder,  # path_lsun
                                                         transform=self._transform)
 
         # self.dataset = torchvision.datasets.LSUN(root=datasets_path, classes='test_lmdb',
         #                                         transform=self._transform)
+
+    def _load_fractal(self):
+        fractal_transform = transforms.Compose([self._transform, transforms.Resize((32, 32))])
+        self.dataset = torchvision.datasets.ImageFolder(path_fractal, transform=fractal_transform)
+
+    def _load_gtsrb(self):
+        """Load GTSRB."""
+        gtsrb_transform = transforms.Compose([self._transform, transforms.Resize((32, 32))])
+        self.dataset = torchvision.datasets.GTSRB(root=datasets_path, split="train",
+                                                  download=True, transform=gtsrb_transform)
+
+    def _load_simpsons_mnist(self):
+        # https://github.com/alexattia/SimpsonRecognition
+        mnist_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,)),
+                                              transforms.Grayscale(num_output_channels=1)
+                                              ])
+        self.dataset = torchvision.datasets.ImageFolder(path_simpsons_mnist, transform=mnist_transform)

@@ -71,6 +71,8 @@ class ReActMonitor:
         self.clip_value = np.quantile(features, self.quantile_value)
 
     def predict(self, features):
+        monitor = None
+        inputs = None
         clipped_features = np.clip(features, a_min=None, a_max=self.clip_value)
         modified_logits = clipped_features.dot(self.W.T) + self.b
 

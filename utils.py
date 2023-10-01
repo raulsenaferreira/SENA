@@ -1,12 +1,27 @@
 import os
 from random import randint
-
+from sklearn.metrics import balanced_accuracy_score, f1_score, precision_score, \
+    recall_score, confusion_matrix, classification_report
+from sklearn.metrics import matthews_corrcoef as mcc
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.io import loadmat
 from keras import backend as K
 from keras.datasets import mnist, fashion_mnist, cifar10
 from methods import shine
+import seaborn as sns
+
+
+def plot_dist_fn_tp(data1, data2):
+    fig = plt.figure(figsize=(10, 10))
+    ax = fig.add_subplot(111)
+    b = sns.distplot(data1, kde=True, ax=ax, hist=False, bins=10, kde_kws=dict(linewidth=5))
+    b = sns.distplot(data2, kde=True, ax=ax, hist=False, bins=10, kde_kws=dict(linewidth=5))
+    # plt.xlabel('Euclidean distance')
+    b.set_xlabel("Euclidean distance", fontsize=18)
+    b.set_ylabel("Density", fontsize=18)
+    b.tick_params(labelsize=18)
+    plt.show()
 
 
 def load_svhn(print_img=False):
@@ -124,7 +139,6 @@ def convert_ood_labels(y_test, cls=None):
     return y_true
 
 
-# Finding best thresholds for some family of monitors
 # Function returns the mean of values between quartiles of scores calculated for correct classified data
 def calculate_threshold(monitor, model_internals, y=None, score_perc=0.95):
     score = None
@@ -146,6 +160,30 @@ def calculate_threshold(monitor, model_internals, y=None, score_perc=0.95):
     limit = int(len(arr_scores) * score_perc)
 
     return arr_scores[limit]
+
+'''
+# Finding the best thresholds for some family of monitors using just the training set as reference
+def calculate_optimal_threshold(monitor, model_internals, labels):
+    score = None
+
+    if monitor.name == 'react' or monitor.name == 'msp' or monitor.name == 'maxlogit' or monitor.name == 'energy':
+        score = monitor.predict(model_internals)
+
+    elif monitor.name == 'mahalanobis':
+        score = monitor.predict(model_internals, np.array([labels] * len(model_internals)))
+
+        # print(monitor.name, score)
+
+        # arr_scores.append(score)
+
+    for
+    # get the threshold
+    arr_scores = np.array(score)  # (arr_scores)
+    arr_scores.sort()
+    limit = int(len(arr_scores) * score_perc)
+
+    return arr_scores[limit]
+'''
 
 
 def calculate_threshold_SHINE(monitor, misclass_images, label, predictions, model_internals, score_perc=0.95):
@@ -305,7 +343,7 @@ def save_results(arr_monitors, id_dataset, ood_type, variant, ground_truth):
     for monitor in arr_monitors:
         if monitor is not None:
             filename = os.path.join('results', id_dataset, ood_type, variant, '{}.sav'.format(monitor.name))
-            print("saving results from monitor {} for {}".format(monitor.name, ood_type))
+            print("saving results from {} for {}".format(monitor.name, ood_type))
             pickle.dump(monitor.results, open(filename, 'wb'))
 
 
@@ -315,6 +353,163 @@ def load_results(arr_monitor_names, id_dataset, ood_type, variant):
     results = {}
     for monitor_name in arr_monitor_names:
         filename = os.path.join('results', id_dataset, ood_type, variant, '{}.sav'.format(monitor_name))
+        print("Loading results from {} for {}".format(monitor_name, ood_type))
         results.update({monitor_name: pickle.load(open(filename, 'rb'))})
 
     return ground_truth, results
+
+
+def load_sena_results(id_dataset, ood_type, variant):
+    filename_gt = os.path.join('results', id_dataset, ood_type, variant, 'ground_truth.sav')
+    ground_truth = pickle.load(open(filename_gt, 'rb'))
+    name = 'sena'
+    filename = os.path.join('test', 'results', id_dataset, ood_type, variant, '{}.sav'.format(name))
+    print("Loading results from {} for {}".format(name, ood_type))
+    results = pickle.load(open(filename, 'rb'))
+
+    return ground_truth, results
+
+
+def load_baseline_results(id_dataset, ood_type, variant):
+    filename = os.path.join('results', id_dataset, ood_type, variant, 'baseline.sav')
+    print("Loading results from Baseline for {}".format(ood_type))
+    ground_truth, results = pickle.load(open(filename, 'rb'))
+
+    return ground_truth, results
+
+
+def save_baseline_results(ood_type, ood_variant, id_dataset, ood_dataset, pred_test, lab_test, pred_ood, lab_ood):
+    id_accuracy = mcc(lab_test, pred_test)
+    ood_accuracy = 0
+    if id_dataset == ood_dataset:
+        ood_accuracy = mcc(lab_ood, pred_ood)
+    print("Model MCC")
+    print("ID: ", id_accuracy)
+    print("OOD: ", ood_accuracy)
+
+    ml_res = np.hstack([pred_test, pred_ood])
+    gr_ood = lab_ood
+    if id_dataset != ood_dataset:
+        gr_ood = np.array([-1] * len(lab_ood))
+
+    gr_tr = np.hstack([lab_test, gr_ood])
+    print("ID+OOD: ", mcc(gr_tr, ml_res))
+
+    # saving results for posterior analysis
+    filename = os.path.join('results', id_dataset, ood_type, ood_variant, 'baseline.sav')
+    print("saving results from baseline for {}".format(ood_type))
+    pickle.dump((gr_tr, ml_res), open(filename, 'wb'))
+
+    evaluation_text = ""
+    CF = confusion_matrix(gr_tr, ml_res)
+    fp = CF.sum(axis=0) - np.diag(CF)
+    fn = CF.sum(axis=1) - np.diag(CF)
+    tp = np.diag(CF)
+    tn = CF.sum() - (fp + fn + tp)
+    sg_score = tp / len(gr_tr)
+    rh_score = fn / len(gr_tr)
+    ac_score = fp / len(gr_tr)
+    evaluation_text += "{}" \
+                       "\nMCC: {}" \
+                       "\nBalanced accuracy: {}" \
+                       "\nFPR: {}" \
+                       "\nFNR: {}" \
+                       "\nPrecision: {}" \
+                       "\nRecall: {}" \
+                       "\nF1: {}" \
+                       "\nSG: {}" \
+                       "\nRH: {}" \
+                       "\nAC: {}" \
+                       "\n\n\n".format("BASELINE",
+                                       mcc(gr_tr, ml_res),
+                                       balanced_accuracy_score(gr_tr, ml_res),
+                                       fp / (fp + tn),
+                                       fn / (tp + fn),
+                                       precision_score(gr_tr, ml_res, average='macro'),
+                                       recall_score(gr_tr, ml_res, average='macro'),
+                                       f1_score(gr_tr, ml_res, average='macro'),
+                                       sg_score,
+                                       rh_score,
+                                       ac_score)
+
+    # saving in a txt file for posterior analysis
+    with open(os.path.join("csv", id_dataset, ood_type, ood_variant, "baseline_evaluation.txt"),
+              "w") as text_file:
+        text_file.write(evaluation_text)
+
+
+def print_results_test_single(id_dataset, ood_type, approach, arr_results, ground_truth, variant):
+    root_path = os.path.join('test', 'results')
+    evaluation_text = ""
+
+    tn, fp, fn, tp = confusion_matrix(ground_truth, arr_results).ravel()
+    sg_score = tp / len(ground_truth)
+    rh_score = fn / len(ground_truth)
+    ac_score = fp / len(ground_truth)
+    evaluation_text += "{}" \
+                       "\nMCC: {}" \
+                       "\nBalanced accuracy: {}" \
+                       "\nFPR: {}" \
+                       "\nFNR: {}" \
+                       "\nPrecision: {}" \
+                       "\nRecall: {}" \
+                       "\nMacro F1: {}" \
+                       "\nSG: {}" \
+                       "\nRH: {}" \
+                       "\nAC: {}" \
+                       "\n\n\n".format(approach.upper(),
+                                       mcc(ground_truth, arr_results),
+                                       balanced_accuracy_score(ground_truth, arr_results),
+                                       fp / (fp + tn),
+                                       fn / (tp + fn),
+                                       precision_score(ground_truth, arr_results, average='macro'),
+                                       recall_score(ground_truth, arr_results, average='macro'),
+                                       f1_score(ground_truth, arr_results, average='macro'),
+                                       sg_score,
+                                       rh_score,
+                                       ac_score)
+
+    # print(classification_report(ground_truth, results[monitor_name]))
+
+    # saving in a txt file for posterior analysis
+    with open(os.path.join(root_path, id_dataset, ood_type, variant, "evaluation_output.txt"), "w") as text_file:
+        text_file.write(evaluation_text)
+
+
+def print_results_test(id_dataset, ood_type, arr_approach, arr_results, ground_truth, variant):
+    root_path = os.path.join('test', 'results')
+    evaluation_text = ""
+
+    for approach in arr_approach:
+        tn, fp, fn, tp = confusion_matrix(ground_truth, arr_results[approach]).ravel()
+        sg_score = tp / len(ground_truth)
+        rh_score = fn / len(ground_truth)
+        ac_score = fp / len(ground_truth)
+        evaluation_text += "{}" \
+                           "\nMCC: {}" \
+                           "\nBalanced accuracy: {}" \
+                           "\nFPR: {}" \
+                           "\nFNR: {}" \
+                           "\nPrecision: {}" \
+                           "\nRecall: {}" \
+                           "\nMacro F1: {}" \
+                           "\nSG: {}" \
+                           "\nRH: {}" \
+                           "\nAC: {}" \
+                           "\n\n\n".format(approach.upper(),
+                                           mcc(ground_truth, arr_results[approach]),
+                                           balanced_accuracy_score(ground_truth, arr_results[approach]),
+                                           fp / (fp + tn),
+                                           fn / (tp + fn),
+                                           precision_score(ground_truth, arr_results[approach], average='macro'),
+                                           recall_score(ground_truth, arr_results[approach], average='macro'),
+                                           f1_score(ground_truth, arr_results[approach], average='macro'),
+                                           sg_score,
+                                           rh_score,
+                                           ac_score)
+
+        # print(classification_report(ground_truth, results[monitor_name]))
+
+        # saving in a txt file for posterior analysis
+        with open(os.path.join(root_path, id_dataset, ood_type, variant, "evaluation_output.txt"), "w") as text_file:
+            text_file.write(evaluation_text)
